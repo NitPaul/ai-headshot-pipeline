@@ -35,15 +35,7 @@ costs one photo and a few seconds.
 
 ## Installing on a new computer
 
-### Step 1 — Install Python (one time)
-
-Download Python from <https://www.python.org/downloads/> and run the installer.
-
-> **Important:** on the first screen of the installer, tick the box that says
-> **"Add Python to PATH"** before clicking Install. The tool will not work
-> without it.
-
-### Step 2 — Get the tool
+### Step 1 — Get the tool
 
 Download the ZIP from GitHub (green **Code** button → **Download ZIP**), then
 right-click it → **Extract All**.
@@ -52,15 +44,21 @@ Put the extracted folder somewhere sensible and permanent, such as
 `C:\WeGro Photo Tool`. Avoid OneDrive or Desktop folders that sync, because the
 tool writes a lot of temporary files.
 
-### Step 3 — Run setup
+### Step 2 — Run setup
 
-Double-click **`setup.bat`**.
+Double-click **`setup.bat`**. That is the whole installation.
 
-It takes about 10 minutes and needs an internet connection. It installs the
-components and downloads roughly 220 MB of face-detection models. You only ever
-do this once per computer.
+It takes about 10 minutes and needs an internet connection. It will:
 
-### Step 4 — Add the free Google key
+- check whether the computer has Python and **install it automatically if not**
+  (the official installer from python.org, for the current user only, so it
+  never asks for an administrator password)
+- build a private environment for the tool
+- download about 220 MB of face-detection models
+
+You only ever do this once per computer. Nothing needs to be installed by hand.
+
+### Step 3 — Add the free Google key
 
 1. Go to <https://aistudio.google.com/apikey>
 2. Sign in with a Google account and click **Create API key** — it is free
@@ -76,7 +74,7 @@ do this once per computer.
 
 **Never share this file or put it on GitHub.** It is your personal key.
 
-### Step 5 — Check it works
+### Step 4 — Check it works
 
 Put one employee photo in `01_inbox`, then double-click **`run.bat`**.
 
@@ -282,7 +280,7 @@ Python is missing, or it was installed without ticking *Add Python to PATH*.
 Reinstall it and tick that box.
 
 **"No Google API key found"**
-The `.env` file has no key in it. See [Step 4](#step-4--add-the-free-google-key).
+The `.env` file has no key in it. See [Step 3](#step-3--add-the-free-google-key).
 
 **"The API key was rejected by Google"**
 The key was copied incorrectly, or it has been deleted in AI Studio. Create a
