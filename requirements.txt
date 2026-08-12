@@ -1,0 +1,19 @@
+# Core image handling
+pillow>=10.0
+numpy>=1.26
+opencv-python>=4.8
+
+# Face landmarks (primary). Falls back to OpenCV cascades if unavailable.
+mediapipe>=0.10.9
+
+# Background removal / alpha matting
+rembg>=2.0.50
+onnxruntime>=1.16
+
+# Gemini image generation
+google-genai>=1.0
+
+# Config, env, CLI output
+PyYAML>=6.0
+python-dotenv>=1.0
+rich>=13.0

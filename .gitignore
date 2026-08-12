@@ -1,0 +1,41 @@
+# Secrets - never commit the API key
+.env
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Downloaded models (setup.bat fetches these, ~42 MB)
+models/
+
+# Processing ledger - specific to each installation
+manifest.json
+
+# -----------------------------------------------------------------------
+# Employee photos must NOT go into the repository.
+# The folders are kept so the tool has its structure, but their contents
+# are ignored. Photographs of staff belong on the company machine only.
+# -----------------------------------------------------------------------
+01_inbox/*
+!01_inbox/.gitkeep
+
+02_working/*
+!02_working/.gitkeep
+
+03_review/*
+!03_review/.gitkeep
+
+04_needs_attention/*
+!04_needs_attention/.gitkeep
+
+05_final/*
+!05_final/.gitkeep
+
+logs/*
+!logs/.gitkeep
+
+# Reference photo used to calibrate the framing. It is a picture of a real
+# employee, so it stays local. The measurements taken from it are already
+# recorded in config.yaml, so the tool does not need this file to run.
+assets/reference/

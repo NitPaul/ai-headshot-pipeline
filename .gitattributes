@@ -1,0 +1,17 @@
+# Batch files must keep Windows line endings or they break when double-clicked
+# after being downloaded as a ZIP.
+*.bat text eol=crlf
+
+# Everything else is normalised
+*.py    text
+*.md    text
+*.yaml  text
+*.txt   text
+
+# Binary assets
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.webp  binary
+*.onnx  binary
+*.task  binary

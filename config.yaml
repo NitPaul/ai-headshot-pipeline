@@ -1,0 +1,200 @@
+# =============================================================================
+#  WeGro Employee Headshot Standardizer  --  settings
+# =============================================================================
+#  You can change the values below without touching any code.
+#  After changing anything, just run  run.bat  again.
+#  Lines starting with '#' are notes and are ignored by the program.
+# =============================================================================
+
+output:
+  # Final image size. Matches the photos already on the WeGro website.
+  width: 1445
+  height: 1089
+
+  # Also save the full-resolution version the tool renders internally
+  # (about 2048px wide), as {name}-large.png. Useful for print or future
+  # redesigns. The free AI models cap out near 2048px, so a true 2x version
+  # of the size above is not available without inventing detail.
+  save_large: true
+
+  # Also save a .webp copy. WebP files are much smaller, good for websites.
+  webp: true
+  webp_quality: 92
+  jpeg_quality: 94
+
+
+# -----------------------------------------------------------------------------
+#  FRAMING  --  how the person is positioned. Identical for every employee,
+#  which is what makes the team page look like one photo shoot.
+# -----------------------------------------------------------------------------
+framing:
+  # Height of the eyes, measured from the top of the image.
+  # 0.354 = eyes sit 35.4% of the way down. Lower number = person sits lower.
+  # This value was measured from the photo already on the WeGro website
+  # (assets/reference/target-look.png) so new photos match the old ones.
+  eye_line: 0.354
+
+  # How wide the face is compared to the full image width.
+  # Bigger number = more zoomed in on the face.
+  # Also measured from the existing website photo.
+  face_width_ratio: 0.241
+
+  # Horizontal centre of the face. 0.5 = dead centre.
+  center_x: 0.5
+
+  # Straighten tilted heads so everyone's eyes are perfectly level.
+  level_eyes: true
+
+
+# -----------------------------------------------------------------------------
+#  BACKGROUND PLATE  --  the branded background everyone is placed on.
+# -----------------------------------------------------------------------------
+plate:
+  file: assets/photo-frame.png
+
+  # The supplied frame is square (1080x1080) but output is wider (1445x1089),
+  # so the sides are extended by mirroring and blurring the edges.
+  # The background is already out of focus, so this is invisible.
+  extend_mode: mirror_blur
+  extend_blur: 24
+
+  # Soften the background if the big leaf watermark competes with people's
+  # heads. 0.0 = plate exactly as supplied. 1.0 = strongly blurred, which
+  # makes the leaf much less noticeable.
+  # NOTE: this softens the whole background, it does not delete the leaf.
+  # To remove the leaf completely, supply a leaf-free plate image instead.
+  background_softness: 0.0
+
+  # Soft shadow under the person so they don't look pasted on.
+  shadow:
+    enabled: true
+    opacity: 0.22
+    blur: 40
+    offset_y: 18
+
+
+# -----------------------------------------------------------------------------
+#  ATTIRE  --  what everyone is dressed in.
+# -----------------------------------------------------------------------------
+attire:
+  # Everyone gets a suit and tie, including women (company standard).
+  # Each person is given ONE combination from the list below, chosen
+  # automatically from their name. The same person always gets the same
+  # outfit, even if you re-run the tool.
+  vary_by_person: true
+
+  combinations:
+    - { suit: "navy blue",           shirt: "crisp white", tie: "deep burgundy" }
+    - { suit: "charcoal grey",       shirt: "crisp white", tie: "navy blue" }
+    - { suit: "midnight navy",       shirt: "light blue",  tie: "silver grey" }
+    - { suit: "graphite grey",       shirt: "crisp white", tie: "forest green" }
+    - { suit: "black",               shirt: "crisp white", tie: "deep red" }
+    - { suit: "dark slate blue",     shirt: "crisp white", tie: "burnt orange" }
+    - { suit: "deep charcoal",       shirt: "light blue",  tie: "royal blue" }
+    - { suit: "navy blue",           shirt: "crisp white", tie: "charcoal grey" }
+    - { suit: "steel grey",          shirt: "crisp white", tie: "oxblood" }
+    - { suit: "dark teal navy",      shirt: "crisp white" , tie: "champagne gold" }
+
+  # Force a specific outfit for specific people. Use the file name without
+  # the extension. Number is the position in the list above (1 = first).
+  # Example:
+  #   overrides:
+  #     john-doe: 1
+  #     jane-smith: 5
+  overrides: {}
+
+
+# -----------------------------------------------------------------------------
+#  FACE LOCK  --  keeps the employee's REAL face.
+#  The AI creates the suit; this step puts the person's actual face back on
+#  top of it, colour-matched to the new lighting. This is what stops the AI
+#  from quietly turning someone into a different-looking person.
+# -----------------------------------------------------------------------------
+facelock:
+  enabled: true
+
+  # How much of the original face to restore.
+  # 1.0 = fully original face (recommended)
+  # 0.0 = keep whatever the AI produced (use only for comparison tests)
+  strength: 1.0
+
+  # Softness of the blend edge, in pixels. Higher = softer, more forgiving.
+  feather: 45
+
+  # How much of the face area is replaced. 1.0 = jaw to hairline.
+  # Lower values keep more of the AI's blending around the edges.
+  mask_scale: 0.92
+
+
+# -----------------------------------------------------------------------------
+#  QUALITY CHECKS  --  nothing reaches 05_final unless it passes these.
+# -----------------------------------------------------------------------------
+qa:
+  # How similar the final face must be to the original photo (0 to 1).
+  # This is a face-recognition score. Above about 0.36 already means
+  # "same person", so 0.45 leaves comfortable margin.
+  # Higher = stricter. Adjust after seeing your first batch.
+  min_face_similarity: 0.45
+
+  # Photos smaller than this (measured across the face) are marked LOW QUALITY.
+  # They are still processed, but flagged for a human to look at.
+  min_face_width_px: 220
+
+  # Warn if the finished eye line drifts from the target set above.
+  eye_line_tolerance: 0.02
+
+  # Put failures in 04_needs_attention instead of stopping the whole run.
+  quarantine_failures: true
+
+
+# -----------------------------------------------------------------------------
+#  AI PROVIDER
+# -----------------------------------------------------------------------------
+provider:
+  name: gemini
+
+  # Get a free key at https://aistudio.google.com/apikey
+  # Put it in the .env file as:  GEMINI_API_KEY=your_key_here
+  model: gemini-3.1-flash-image
+  fallback_model: gemini-2.5-flash-image
+
+  # Wait this many seconds between images, to stay inside the free limits.
+  throttle_seconds: 6
+
+  # Retries on temporary errors.
+  max_retries: 3
+
+  # Stop the whole run when the daily free quota is used up.
+  # The next run picks up exactly where this one stopped.
+  stop_on_quota: true
+
+
+# -----------------------------------------------------------------------------
+#  INPUT HANDLING
+# -----------------------------------------------------------------------------
+input:
+  extensions: [".jpg", ".jpeg", ".png", ".webp", ".bmp"]
+
+  # Even out photos taken under yellow or blue lighting, so everyone matches.
+  neutralize_white_balance: true
+
+  # Enlarge small photos automatically before processing.
+  upscale_small_inputs: true
+  upscale_target_face_px: 512
+
+
+# -----------------------------------------------------------------------------
+#  FOLDERS  --  you should not normally need to change these.
+# -----------------------------------------------------------------------------
+paths:
+  inbox: "01_inbox"
+  working: "02_working"
+  review: "03_review"
+  needs_attention: "04_needs_attention"
+  final: "05_final"
+  logs: "logs"
+  manifest: "manifest.json"
+
+# Keep the step-by-step working images. Useful for troubleshooting.
+# Set to false to save disk space.
+keep_intermediates: true
