@@ -11,6 +11,7 @@ from __future__ import annotations
 import io
 import os
 import random
+import re
 import time
 from pathlib import Path
 from typing import Any
@@ -19,13 +20,22 @@ import cv2
 import numpy as np
 from PIL import Image
 
-from .base import ImageProvider, ProviderError, QuotaExhausted, SafetyBlocked
+from .base import (
+    ImageProvider,
+    ModelNotAvailable,
+    ProviderError,
+    QuotaExhausted,
+    SafetyBlocked,
+)
 
 PROMPT_FILE = Path(__file__).resolve().parent.parent / "prompts" / "suit_swap.md"
 
 # Substrings that mean the daily allowance is gone rather than a short burst
 # limit. A per-minute limit is worth waiting for; a per-day limit is not.
-_DAILY_MARKERS = ("perday", "per day", "requests per day", "daily limit", "quota_limit_value")
+_DAILY_MARKERS = ("perday", "per day", "requests per day", "daily limit")
+
+# Google reports "not included in your plan" as a 429 carrying `limit: 0`.
+_LIMIT_ZERO = re.compile(r"limit:\s*0(?![0-9])")
 
 
 def _aspect_ratio_label(width: int, height: int) -> str:
@@ -145,6 +155,7 @@ class GeminiProvider(ImageProvider):
             models.append(self.cfg.provider.fallback_model)
 
         last_error: Exception | None = None
+        unavailable: list[str] = []
         max_retries = int(self.cfg.provider.max_retries)
 
         for model in models:
@@ -156,9 +167,16 @@ class GeminiProvider(ImageProvider):
                     text = str(exc).lower()
 
                     if "429" in text or "resource_exhausted" in text or "quota" in text:
+                        # `limit: 0` means the plan does not include this model,
+                        # not that today's allowance is spent. Retrying is
+                        # pointless, but a different model may still work.
+                        if _LIMIT_ZERO.search(str(exc)):
+                            unavailable.append(model)
+                            break
+
                         if any(marker in text for marker in _DAILY_MARKERS):
                             raise QuotaExhausted(
-                                "The free daily image quota is used up. Run this "
+                                "The daily image quota is used up. Run this "
                                 "again tomorrow - everyone already finished will "
                                 "be skipped automatically."
                             ) from exc
@@ -195,6 +213,16 @@ class GeminiProvider(ImageProvider):
 
         if isinstance(last_error, QuotaExhausted):
             raise last_error
+
+        if unavailable and len(unavailable) == len(models):
+            raise ModelNotAvailable(
+                "Your Google plan does not include image generation.\n"
+                f"  Tried: {', '.join(unavailable)}\n"
+                "  Google reports an allowance of zero for these models, so\n"
+                "  waiting will not help. Enable billing on the Google Cloud\n"
+                "  project behind this API key, or use a different provider."
+            )
+
         raise ProviderError(f"Image generation failed: {last_error}")
 
     @staticmethod

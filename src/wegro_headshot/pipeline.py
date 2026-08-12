@@ -26,7 +26,7 @@ from .manifest import (
     file_sha256,
     slugify,
 )
-from .providers.base import ProviderError, QuotaExhausted
+from .providers.base import ModelNotAvailable, ProviderError, QuotaExhausted
 
 FLAG_FACELOCK_SKIPPED = "FACELOCK_SKIPPED"
 FLAG_COLOUR_KEY = "BASIC_CUTOUT"
@@ -250,8 +250,9 @@ class Pipeline:
             try:
                 record = self.process_one(path, record)
 
-            except QuotaExhausted as exc:
-                # Not an error: today's free allowance is simply used up.
+            except (QuotaExhausted, ModelNotAvailable) as exc:
+                # Neither is this photo's fault, and both affect every
+                # remaining person, so stop rather than repeat the failure.
                 outcome.remaining = len(queue) - position + 1
                 outcome.stopped_reason = str(exc)
                 self.manifest.save()

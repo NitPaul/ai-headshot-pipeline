@@ -16,7 +16,16 @@ class ProviderError(RuntimeError):
 
 
 class QuotaExhausted(ProviderError):
-    """The daily free allowance is used up; the run should stop cleanly."""
+    """The daily allowance is used up; the run should stop and resume tomorrow."""
+
+
+class ModelNotAvailable(ProviderError):
+    """The account's plan does not include this model at all.
+
+    Reported by Google as a 429 with `limit: 0`, which looks like a quota
+    error but is not one: waiting does not help, because the allowance is
+    zero rather than spent.
+    """
 
 
 class SafetyBlocked(ProviderError):
