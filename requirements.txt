@@ -17,3 +17,7 @@ google-genai>=1.0
 PyYAML>=6.0
 python-dotenv>=1.0
 rich>=13.0
+
+# Reads the Google Forms spreadsheet and iPhone HEIC photos
+openpyxl>=3.1
+pillow-heif>=0.15

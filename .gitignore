@@ -42,3 +42,8 @@ assets/reference/
 
 # Manual generation workspace - contains employee photos
 manual/
+
+# Employee data exports - personal information, never commit
+*.xlsx
+*.xls
+*.csv

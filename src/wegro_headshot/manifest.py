@@ -29,14 +29,21 @@ STATUS_FAILED = "failed"
 STATUS_AWAITING = "awaiting_generation"
 
 
+def slugify_text(text: str) -> str:
+    """'Md. Golam Rabbe Bhuiyan' -> 'md-golam-rabbe-bhuiyan'.
+
+    For plain text such as a person's name. Unlike `slugify` it does not treat
+    a dot as the start of a file extension, which would cut 'Md. Golam' down
+    to 'md'.
+    """
+    text = unicodedata.normalize("NFKD", text)
+    text = text.encode("ascii", "ignore").decode("ascii").lower()
+    return re.sub(r"[^a-z0-9]+", "-", text).strip("-") or "unnamed"
+
+
 def slugify(name: str) -> str:
-    """'John  Doe (HR).JPG' -> 'john-doe-hr'."""
-    stem = Path(name).stem
-    stem = unicodedata.normalize("NFKD", stem)
-    stem = stem.encode("ascii", "ignore").decode("ascii")
-    stem = stem.lower()
-    stem = re.sub(r"[^a-z0-9]+", "-", stem)
-    return stem.strip("-") or "unnamed"
+    """'John  Doe (HR).JPG' -> 'john-doe-hr'. Strips the file extension."""
+    return slugify_text(Path(name).stem)
 
 
 def file_sha256(path: Path) -> str:

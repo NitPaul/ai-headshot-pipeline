@@ -160,44 +160,126 @@ class _YuNetBackend:
         )
 
 
-_backend = None
-_backend_error: str | None = None
+_backends: dict[str, object] | None = None
+
+# How much context to include around a located face before re-running the mesh.
+_CROP_PADDING = 2.4
 
 
-def get_backend():
-    """Build the detector once; loading these models is slow."""
-    global _backend, _backend_error
-    if _backend is not None:
-        return _backend
+def _build_backends() -> dict[str, object]:
+    global _backends
+    if _backends is not None:
+        return _backends
 
+    built: dict[str, object] = {}
     problems = []
-    for builder in (_MediaPipeBackend, _YuNetBackend):
+    for key, builder in (("mesh", _MediaPipeBackend), ("yunet", _YuNetBackend)):
         try:
-            _backend = builder()
-            return _backend
+            built[key] = builder()
         except Exception as exc:
             problems.append(f"{builder.name}: {exc}")
 
-    _backend_error = "; ".join(problems)
-    raise FaceModelMissing(
-        "No face detection model could be loaded. Run setup.bat to download "
-        f"the models.\nDetails: {_backend_error}"
+    if not built:
+        raise FaceModelMissing(
+            "No face detection model could be loaded. Run setup.bat to download "
+            "the models.\nDetails: " + "; ".join(problems)
+        )
+
+    _backends = built
+    return _backends
+
+
+def _offset(face: Face, dx: int, dy: int, total: int) -> Face:
+    """Move a face detected in a crop back into full-image coordinates."""
+    shift = np.array([dx, dy], dtype=np.float32)
+    x, y, w, h = face.bbox
+    return Face(
+        left_eye=face.left_eye + shift,
+        right_eye=face.right_eye + shift,
+        width=face.width,
+        bbox=(x + dx, y + dy, w, h),
+        landmarks=None if face.landmarks is None else face.landmarks + shift,
+        nose=None if face.nose is None else face.nose + shift,
+        mouth_left=None if face.mouth_left is None else face.mouth_left + shift,
+        mouth_right=None if face.mouth_right is None else face.mouth_right + shift,
+        total_faces=total,
     )
 
 
 def detect(bgr: np.ndarray) -> Face | None:
-    return get_backend().detect(bgr)
+    """Find the main face, with a second attempt for small faces.
+
+    The mesh model shrinks the picture before looking, so a face that is only
+    a small part of a large photograph - somebody standing in a garden, say -
+    can be missed entirely. When that happens the lightweight detector locates
+    the head first, and the mesh is then run again on just that region, which
+    keeps the precise landmarks the rest of the pipeline needs.
+    """
+    backends = _build_backends()
+    mesh = backends.get("mesh")
+    yunet = backends.get("yunet")
+
+    if mesh is not None:
+        face = mesh.detect(bgr)
+        if face is not None:
+            return face
+
+    if yunet is None:
+        return None
+
+    located = yunet.detect(bgr)
+    if located is None or mesh is None:
+        return located
+
+    height, width = bgr.shape[:2]
+    x, y, w, h = located.bbox
+    cx, cy = x + w / 2.0, y + h / 2.0
+    half = max(w, h) * _CROP_PADDING / 2.0
+
+    x0 = max(0, int(cx - half))
+    y0 = max(0, int(cy - half))
+    x1 = min(width, int(cx + half))
+    y1 = min(height, int(cy + half))
+    if x1 - x0 < 32 or y1 - y0 < 32:
+        return located
+
+    crop = bgr[y0:y1, x0:x1]
+    # Small crops are enlarged so the mesh has enough pixels to work with.
+    scale = 1.0
+    if max(crop.shape[:2]) < 512:
+        scale = 512 / max(crop.shape[:2])
+        crop = cv2.resize(crop, None, fx=scale, fy=scale,
+                          interpolation=cv2.INTER_CUBIC)
+
+    refined = mesh.detect(crop)
+    if refined is None:
+        return located
+
+    if scale != 1.0:
+        refined = Face(
+            left_eye=refined.left_eye / scale,
+            right_eye=refined.right_eye / scale,
+            width=refined.width / scale,
+            bbox=tuple(int(v / scale) for v in refined.bbox),
+            landmarks=None if refined.landmarks is None else refined.landmarks / scale,
+            nose=None if refined.nose is None else refined.nose / scale,
+            mouth_left=None if refined.mouth_left is None else refined.mouth_left / scale,
+            mouth_right=None if refined.mouth_right is None else refined.mouth_right / scale,
+        )
+
+    return _offset(refined, x0, y0, located.total_faces)
 
 
 def backend_name() -> str:
     try:
-        return get_backend().name
+        names = [b.name for b in _build_backends().values()]
     except FaceModelMissing:
         return "none installed"
+    return " + ".join(names)
 
 
 def has_landmarks() -> bool:
     try:
-        return get_backend().precise
+        return "mesh" in _build_backends()
     except FaceModelMissing:
         return False
