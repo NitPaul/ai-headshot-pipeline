@@ -142,7 +142,9 @@ class GeminiProvider(ImageProvider):
             config=self._build_config(aspect),
         )
 
-    def restyle(self, image: np.ndarray, outfit: dict[str, str]) -> np.ndarray:
+    def restyle(
+        self, image: np.ndarray, outfit: dict[str, str], employee_id: str
+    ) -> np.ndarray:
         height, width = image.shape[:2]
         pil = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
         aspect = _aspect_ratio_label(width, height)

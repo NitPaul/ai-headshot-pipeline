@@ -73,18 +73,20 @@ def _validate(cfg: Config) -> None:
     if not 0.0 <= cfg.qa.min_face_similarity <= 1.0:
         problems.append("qa.min_face_similarity must be between 0.0 and 1.0.")
 
-    if not cfg.attire.combinations:
-        problems.append("attire.combinations must list at least one outfit.")
+    for key in ("suits", "shirts", "ties"):
+        if not cfg.attire.get(key):
+            problems.append(f"attire.{key} must list at least one colour.")
 
     plate = cfg.root / cfg.plate.file
     if not plate.exists():
         problems.append(f"Background plate not found: {plate}")
 
-    for name, index in (cfg.attire.overrides or {}).items():
-        if not isinstance(index, int) or not 1 <= index <= len(cfg.attire.combinations):
+    for name, outfit in (cfg.attire.overrides or {}).items():
+        if not isinstance(outfit, dict) or not {"suit", "shirt", "tie"} & set(outfit):
             problems.append(
-                f"attire.overrides['{name}'] must be a number between 1 "
-                f"and {len(cfg.attire.combinations)}."
+                f"attire.overrides['{name}'] must set suit, shirt and/or tie, "
+                'for example: { suit: "navy blue", shirt: "crisp white", '
+                'tie: "deep red" }'
             )
 
     if problems:

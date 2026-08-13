@@ -18,6 +18,7 @@ import numpy as np
 
 from . import align, compose, cutout, export, facelock, normalize, palette, qa, review
 from .manifest import (
+    STATUS_AWAITING,
     STATUS_FAILED,
     STATUS_FINAL,
     STATUS_NEEDS_ATTENTION,
@@ -26,7 +27,12 @@ from .manifest import (
     file_sha256,
     slugify,
 )
-from .providers.base import ModelNotAvailable, ProviderError, QuotaExhausted
+from .providers.base import (
+    AwaitingManualInput,
+    ModelNotAvailable,
+    ProviderError,
+    QuotaExhausted,
+)
 
 FLAG_FACELOCK_SKIPPED = "FACELOCK_SKIPPED"
 FLAG_COLOUR_KEY = "BASIC_CUTOUT"
@@ -39,8 +45,10 @@ class Outcome:
     skipped: int = 0
     attention: int = 0
     failed: int = 0
+    awaiting: int = 0
     remaining: int = 0
     stopped_reason: str | None = None
+    provider_note: str | None = None
 
 
 class Pipeline:
@@ -81,6 +89,25 @@ class Pipeline:
             return
         cv2.imwrite(str(self._work_dir(employee_id) / name), image)
 
+    def _outfit_for(self, record: Record) -> tuple[int, dict[str, str]]:
+        """The employee's outfit, reusing the one already recorded for them.
+
+        Keeping the assignment in the ledger is what stops a person's suit
+        changing when colleagues are added or removed.
+        """
+        existing = palette.resolve(self.cfg, record.outfit_index)
+        if existing is not None:
+            return record.outfit_index, existing
+
+        taken = {
+            other.outfit_index
+            for other in self.manifest.employees.values()
+            if other.outfit_index is not None
+            and other.outfit_index >= 0
+            and other.employee_id != record.employee_id
+        }
+        return palette.assign(self.cfg, record.employee_id, taken)
+
     def _quarantine(self, employee_id: str, image: np.ndarray, reason: str) -> Path:
         slug = re.sub(r"[^a-z0-9]+", "-", reason.lower())[:60].strip("-")
         target = self.cfg.path("needs_attention") / f"{employee_id}__{slug}.png"
@@ -111,11 +138,11 @@ class Pipeline:
         self._save_step(employee_id, "02_aligned.png", aligned)
 
         # 3. the only AI step: give them a suit
-        outfit_index, outfit = palette.choose_outfit(self.cfg, employee_id)
+        outfit_index, outfit = self._outfit_for(record)
         record.outfit_index = outfit_index
         self.log.detail(f"    outfit: {palette.describe(outfit)}")
 
-        generated = self.provider.restyle(aligned, outfit)
+        generated = self.provider.restyle(aligned, outfit, employee_id)
         record.model = self.provider.model_label
         self._save_step(employee_id, "03_generated.png", generated)
 
@@ -238,8 +265,13 @@ class Pipeline:
 
         if dry_run:
             for _, employee_id, _ in queue:
-                index, outfit = palette.choose_outfit(self.cfg, employee_id)
-                self.log.detail(f"  would process {employee_id} - {palette.describe(outfit)}")
+                record = self.manifest.get(employee_id) or Record(
+                    employee_id=employee_id, source_file="", source_sha256=""
+                )
+                _, outfit = self._outfit_for(record)
+                self.log.detail(
+                    f"  would process {employee_id} - {palette.describe(outfit)}"
+                )
             outcome.remaining = len(queue)
             return outcome
 
@@ -257,6 +289,18 @@ class Pipeline:
                 outcome.stopped_reason = str(exc)
                 self.manifest.save()
                 return outcome
+
+            except AwaitingManualInput as exc:
+                # Queued for a human. Not a failure, and the next person can
+                # still be prepared, so keep going.
+                record.status = STATUS_AWAITING
+                record.reason = str(exc)
+                record.stamp()
+                self.manifest.put(record)
+                self.manifest.save()
+                outcome.awaiting += 1
+                self.log.detail("    prepared, waiting for you to generate it")
+                continue
 
             except (normalize.NoFaceFound, ProviderError) as exc:
                 record.status = STATUS_FAILED
@@ -283,4 +327,5 @@ class Pipeline:
             else:
                 outcome.failed += 1
 
+        outcome.provider_note = self.provider.finish()
         return outcome

@@ -39,3 +39,6 @@ logs/*
 # employee, so it stays local. The measurements taken from it are already
 # recorded in config.yaml, so the tool does not need this file to run.
 assets/reference/
+
+# Manual generation workspace - contains employee photos
+manual/

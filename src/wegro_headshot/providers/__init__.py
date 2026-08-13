@@ -13,12 +13,17 @@ def build_provider(cfg: Any) -> ImageProvider:
         from .gemini import GeminiProvider
 
         return GeminiProvider(cfg)
+    if name == "manual":
+        from .manual import ManualProvider
+
+        return ManualProvider(cfg)
     if name == "stub":
         from .stub import StubProvider
 
         return StubProvider(cfg)
     raise ProviderError(
-        f"Unknown provider '{name}' in config.yaml. Use 'gemini' or 'stub'."
+        f"Unknown provider '{name}' in config.yaml. "
+        "Use 'manual', 'gemini' or 'stub'."
     )
 
 

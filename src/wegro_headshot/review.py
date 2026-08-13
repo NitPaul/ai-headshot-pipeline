@@ -13,7 +13,12 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from .manifest import STATUS_FINAL, STATUS_NEEDS_ATTENTION, Manifest
+from .manifest import (
+    STATUS_AWAITING,
+    STATUS_FINAL,
+    STATUS_NEEDS_ATTENTION,
+    Manifest,
+)
 
 PANEL_HEIGHT = 520
 
@@ -93,8 +98,9 @@ def _card(record, cfg) -> str:
 
 def write_contact_sheet(manifest: Manifest, cfg) -> Path:
     """One page showing every employee, worst face-match score first."""
+    # People still queued for generation have no result to look at yet.
     records = sorted(
-        manifest.employees.values(),
+        (r for r in manifest.employees.values() if r.status != STATUS_AWAITING),
         key=lambda r: (r.status == STATUS_FINAL,
                        r.face_similarity if r.face_similarity is not None else -1.0),
     )

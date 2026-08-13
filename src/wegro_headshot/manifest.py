@@ -26,6 +26,7 @@ MANIFEST_VERSION = 1
 STATUS_FINAL = "final"
 STATUS_NEEDS_ATTENTION = "needs_attention"
 STATUS_FAILED = "failed"
+STATUS_AWAITING = "awaiting_generation"
 
 
 def slugify(name: str) -> str:
@@ -150,6 +151,19 @@ class Manifest:
                 employee_id=employee_id, source_file=source_file, source_sha256=sha
             )
 
+        # Same photo, and the last attempt never finished: this is that attempt
+        # continuing rather than a new version. Without this, somebody waiting
+        # on manual generation would gain a version on every single run.
+        if previous.source_sha256 == sha and previous.status != STATUS_FINAL:
+            return Record(
+                employee_id=employee_id,
+                source_file=source_file,
+                source_sha256=sha,
+                version=previous.version,
+                outfit_index=previous.outfit_index,
+                history=list(previous.history),
+            )
+
         archived = previous.to_dict()
         archived.pop("history", None)
         history = list(previous.history)
@@ -160,5 +174,7 @@ class Manifest:
             source_file=source_file,
             source_sha256=sha,
             version=previous.version + 1,
+            # A new photograph does not mean a new suit.
+            outfit_index=previous.outfit_index,
             history=history[-10:],
         )

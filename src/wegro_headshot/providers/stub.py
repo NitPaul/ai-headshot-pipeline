@@ -20,7 +20,9 @@ class StubProvider(ImageProvider):
     def __init__(self, cfg: Any):
         self.cfg = cfg
 
-    def restyle(self, image: np.ndarray, outfit: dict[str, str]) -> np.ndarray:
+    def restyle(
+        self, image: np.ndarray, outfit: dict[str, str], employee_id: str
+    ) -> np.ndarray:
         """Return the input on a flat grey field, so the cutout stage has
         something realistic to work with."""
         out = image.copy()

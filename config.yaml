@@ -78,29 +78,47 @@ plate:
 # -----------------------------------------------------------------------------
 attire:
   # Everyone gets a suit and tie, including women (company standard).
-  # Each person is given ONE combination from the list below, chosen
-  # automatically from their name. The same person always gets the same
-  # outfit, even if you re-run the tool.
+  #
+  # The tool combines every suit with every shirt and tie below, throws away
+  # pairings that clash (it never puts a navy tie on a navy suit), and gives
+  # each person one of the results based on their name. If somebody's first
+  # choice is already worn by a colleague, they get the next free one, so
+  # people look different from each other.
+  #
+  # Once assigned, an outfit is recorded and never changes, even if you re-run
+  # the tool or add new staff.
   vary_by_person: true
 
-  combinations:
-    - { suit: "navy blue",           shirt: "crisp white", tie: "deep burgundy" }
-    - { suit: "charcoal grey",       shirt: "crisp white", tie: "navy blue" }
-    - { suit: "midnight navy",       shirt: "light blue",  tie: "silver grey" }
-    - { suit: "graphite grey",       shirt: "crisp white", tie: "forest green" }
-    - { suit: "black",               shirt: "crisp white", tie: "deep red" }
-    - { suit: "dark slate blue",     shirt: "crisp white", tie: "burnt orange" }
-    - { suit: "deep charcoal",       shirt: "light blue",  tie: "royal blue" }
-    - { suit: "navy blue",           shirt: "crisp white", tie: "charcoal grey" }
-    - { suit: "steel grey",          shirt: "crisp white", tie: "oxblood" }
-    - { suit: "dark teal navy",      shirt: "crisp white" , tie: "champagne gold" }
+  suits:
+    - "navy blue"
+    - "charcoal grey"
+    - "midnight navy"
+    - "graphite grey"
+    - "black"
+    - "dark slate blue"
+    - "steel grey"
+    - "deep charcoal"
 
-  # Force a specific outfit for specific people. Use the file name without
-  # the extension. Number is the position in the list above (1 = first).
-  # Example:
+  shirts:
+    - "crisp white"
+    - "light blue"
+
+  ties:
+    - "deep burgundy"
+    - "navy blue"
+    - "silver grey"
+    - "forest green"
+    - "deep red"
+    - "burnt orange"
+    - "royal blue"
+    - "charcoal grey"
+    - "oxblood"
+    - "champagne gold"
+
+  # Force an exact outfit for particular people. Use the file name without the
+  # extension. Example:
   #   overrides:
-  #     john-doe: 1
-  #     jane-smith: 5
+  #     alvi-rahman: { suit: "navy blue", shirt: "crisp white", tie: "deep burgundy" }
   overrides: {}
 
 
@@ -151,7 +169,20 @@ qa:
 #  AI PROVIDER
 # -----------------------------------------------------------------------------
 provider:
-  name: gemini
+  # Which back-end creates the suit. Choose one:
+  #
+  #   manual  - YOU generate each photo in the Gemini app you already pay for.
+  #             The tool prepares everything and finishes everything; you only
+  #             do the one step that needs the subscription. Free, best quality.
+  #
+  #   gemini  - fully automatic through the Gemini API.
+  #             NOTE: image generation is NOT included in Google's free API
+  #             tier. This only works if billing is enabled on the Google Cloud
+  #             project behind your key (about 4 US cents per photo).
+  #
+  #   stub    - no AI at all. For testing the rest of the process.
+  #
+  name: manual
 
   # Get a free key at https://aistudio.google.com/apikey
   # Put it in the .env file as:  GEMINI_API_KEY=your_key_here
@@ -167,6 +198,15 @@ provider:
   # Stop the whole run when the daily free quota is used up.
   # The next run picks up exactly where this one stopped.
   stop_on_quota: true
+
+
+# -----------------------------------------------------------------------------
+#  MANUAL MODE  --  used when provider.name is 'manual'.
+# -----------------------------------------------------------------------------
+manual:
+  # Folder where the tool puts photos for you to generate, and where you put
+  # the results back. Open START_HERE.html inside it for step by step help.
+  folder: "manual"
 
 
 # -----------------------------------------------------------------------------

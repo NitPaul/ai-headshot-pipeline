@@ -15,7 +15,12 @@ from dotenv import load_dotenv
 from . import __version__, facedet, qa, review
 from .config import Config
 from .logging_util import Log
-from .manifest import STATUS_FINAL, STATUS_NEEDS_ATTENTION, Manifest
+from .manifest import (
+    STATUS_AWAITING,
+    STATUS_FINAL,
+    STATUS_NEEDS_ATTENTION,
+    Manifest,
+)
 from .pipeline import Pipeline
 from .providers import build_provider
 from .providers.base import ProviderError
@@ -42,8 +47,8 @@ def build_parser() -> argparse.ArgumentParser:
                         help="Stop after N people. Useful for a first test.")
     parser.add_argument("--dry-run", action="store_true",
                         help="Show what would happen without generating anything.")
-    parser.add_argument("--provider", choices=["gemini", "stub"],
-                        help="Override the AI back-end. 'stub' uses no quota.")
+    parser.add_argument("--provider", choices=["manual", "gemini", "stub"],
+                        help="Override the back-end. 'stub' uses no AI at all.")
     parser.add_argument("--status", action="store_true",
                         help="Show the current state of everyone and exit.")
     parser.add_argument("--rebuild-review", action="store_true",
@@ -66,7 +71,7 @@ def show_status(manifest: Manifest, cfg, log: Log) -> None:
         line = f"  {record.employee_id:<28} {record.status:<17} match {score}{flags}"
         if record.status == STATUS_FINAL:
             log.ok(line)
-        elif record.status == STATUS_NEEDS_ATTENTION:
+        elif record.status in (STATUS_NEEDS_ATTENTION, STATUS_AWAITING):
             log.warn(line)
         else:
             log.error(line)
@@ -139,10 +144,17 @@ def main(argv: list[str] | None = None) -> int:
         log.rule("Summary")
         log.ok(f"  ready for the website : {outcome.processed}")
         log.detail(f"  already done, skipped : {outcome.skipped}")
+        if outcome.awaiting:
+            log.warn(f"  waiting for you       : {outcome.awaiting}")
         if outcome.attention:
             log.warn(f"  need a human look     : {outcome.attention}")
         if outcome.failed:
             log.error(f"  could not be done     : {outcome.failed}")
+
+        if outcome.provider_note:
+            log.info("")
+            for line in outcome.provider_note.splitlines():
+                log.warn(f"  {line}")
 
         if outcome.stopped_reason:
             log.info("")

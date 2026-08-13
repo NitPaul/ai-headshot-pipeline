@@ -24,7 +24,7 @@ costs one photo and a few seconds.
 - [How it keeps faces accurate](#how-it-keeps-faces-accurate)
 - [Suit and tie colours](#suit-and-tie-colours)
 - [When a photo needs attention](#when-a-photo-needs-attention)
-- [Free usage limits](#free-usage-limits)
+- [Generation modes](#generation-modes)
 - [Changing how photos look](#changing-how-photos-look)
 - [All commands](#all-commands)
 - [Troubleshooting](#troubleshooting)
@@ -58,25 +58,13 @@ It takes about 10 minutes and needs an internet connection. It will:
 
 You only ever do this once per computer. Nothing needs to be installed by hand.
 
-### Step 3 — Add the free Google key
-
-1. Go to <https://aistudio.google.com/apikey>
-2. Sign in with a Google account and click **Create API key** — it is free
-3. Copy the key
-4. In the tool folder, open the file called **`.env`** with Notepad
-5. Paste the key after `GEMINI_API_KEY=` so the line looks like:
-
-   ```
-   GEMINI_API_KEY=AIzaSy...your-actual-key...
-   ```
-
-6. Save and close
-
-**Never share this file or put it on GitHub.** It is your personal key.
-
-### Step 4 — Check it works
+### Step 3 — Check it works
 
 Put one employee photo in `01_inbox`, then double-click **`run.bat`**.
+
+Nothing else to configure. Out of the box the tool runs in **manual mode**,
+which uses the Gemini subscription you already have rather than a paid API.
+See [Generation modes](#generation-modes) below.
 
 ---
 
@@ -86,9 +74,17 @@ Put one employee photo in `01_inbox`, then double-click **`run.bat`**.
 
 1. Put their photo in the **`01_inbox`** folder
 2. Name the file with their name: `tanvir-ahmed.jpg`
-3. Double-click **`run.bat`**
-4. Open **`03_review\_contact_sheet.html`** and look at the result
-5. Their finished photo is in **`05_final`** — send that to the web team
+3. Double-click **`run.bat`** — it prepares the photo and tells you what to do
+4. Open **`manual\START_HERE.html`** and follow the steps on that page:
+   copy the instruction, paste it into Gemini with the prepared picture,
+   and save what Gemini returns into `manual\2_put_results_here`
+5. Double-click **`run.bat`** again — it finishes everything
+6. Open **`03_review\_contact_sheet.html`** and look at the result
+7. Their finished photo is in **`05_final`** — send that to the web team
+
+You always run the tool twice: once before generating, once after. It keeps
+track of who is at which stage, so you can generate five people today and the
+rest next week.
 
 The file name becomes the website file name, so name it properly.
 `tanvir-ahmed.jpg` produces `tanvir-ahmed.png`. Avoid names like
@@ -104,15 +100,17 @@ and run again. The tool notices the photo changed and redoes just that person.
 
 ### Doing the first big batch
 
-For your first 30–100 employees:
+For your first 30–100 employees, start with one person only:
 
 ```
 run.bat --limit 1
 ```
 
-Check that one result carefully first. If you are happy, run `run.bat` normally
-to do the rest. See [Free usage limits](#free-usage-limits) — a large first
-batch usually takes a few days.
+Generate that one, run again, and look at the result carefully before doing the
+rest. Once you are happy, drop everyone into `01_inbox` and run normally.
+
+You do not have to finish in one sitting. Generate as many as you like, run the
+tool, and repeat another day — it always picks up exactly where you stopped.
 
 ---
 
@@ -124,6 +122,7 @@ batch usually takes a few days.
 | **`03_review`** | Before/after pictures and the contact sheet. **Check this.** |
 | **`04_needs_attention`** | Photos the tool was not confident about. |
 | **`05_final`** | **Finished photos for the website.** |
+| **`manual`** | **Where you generate photos.** Open `START_HERE.html` inside it. |
 | `02_working` | Step-by-step images, for troubleshooting. Safe to delete. |
 | `logs` | What happened on each run. Safe to delete. |
 | `assets` | The WeGro background plate. Do not delete. |
@@ -160,19 +159,23 @@ on the WeGro website, so new photos line up beside the existing ones.
 
 ## Suit and tie colours
 
-Each person is automatically given one of ten professional suit-and-tie
-combinations, chosen from their name. The same person always gets the same
-outfit, even if you run the tool again, and adding a new employee never changes
-anyone else's. Women get a suit and tie too, as the company standard.
+The tool combines every suit colour with every shirt and tie in `config.yaml`
+and discards pairings that clash — it will never put a navy tie on a navy suit.
+That gives **132 professional combinations** out of the box.
 
-To force a particular outfit, open `config.yaml` and add them under `overrides`
-with the number of the combination you want from the list above it:
+Each person is given one based on their name. If a colleague already has that
+outfit, they get the next free one, so people look different from each other.
+
+Once someone has been given an outfit it is recorded and **never changes** —
+not when you re-run the tool, not when new staff are added, and not even if
+they send a new photo. Women get a suit and tie too, as the company standard.
+
+To force an exact outfit for someone, add them under `overrides`:
 
 ```yaml
 attire:
   overrides:
-    tanvir-ahmed: 3
-    sadia-rahman: 7
+    tanvir-ahmed: { suit: "navy blue", shirt: "crisp white", tie: "deep red" }
 ```
 
 ---
@@ -201,26 +204,46 @@ Fix the source photo, put it in `01_inbox` with the same name, run again.
 
 ---
 
-## Free usage limits
+## Generation modes
 
-The AI is free, but Google limits how many images you can make per day, and
-they change that limit from time to time. Check yours at
-<https://aistudio.google.com/rate-limit>.
+The tool can create the suits in three ways. Change it with `provider.name`
+in `config.yaml`.
 
-If you hit the limit, the tool **stops politely** and tells you how many people
-are left:
+### `manual` — the default, and what WeGro uses
+
+You generate each photo in the Gemini app, using the subscription the company
+already pays for. The tool does everything else.
+
+- **Free.** No API key, no billing, no card.
+- **Best quality** — it is the full Gemini image model, not a cut-down one.
+- Costs your time: roughly 1–2 minutes per person.
+
+Run `run.bat`, open `manual\START_HERE.html`, work down the list, then run
+`run.bat` again. For a first batch of 30–100 staff, allow two or three hours,
+split over as many days as you like. After that each new hire is one photo.
+
+> **Important:** Google's free API tier does **not** include image generation
+> at all. Any guide claiming otherwise is out of date. That is why this mode
+> exists — it is the only way to use a Gemini subscription legitimately from a
+> tool like this.
+
+### `gemini` — fully automatic, paid
+
+Hands-off batch processing through the Gemini API. This needs **billing enabled**
+on the Google Cloud project behind your API key. It costs roughly 4 US cents per
+photo, so about **$4 for 100 employees**, then a few cents per new hire.
+
+To use it: put a key in the `.env` file (copy `.env.example` if it is missing),
+and set `provider.name: gemini` in `config.yaml`.
+
+### `stub` — no AI at all
+
+Runs every step except the generation. Use it to check framing, background,
+file names and the whole process without generating anything:
 
 ```
-  The free daily image quota is used up. Run this again tomorrow -
-  everyone already finished will be skipped automatically.
-  47 person(s) still waiting.
+run.bat --provider stub
 ```
-
-Just run it again the next day. It carries on exactly where it stopped. Nothing
-is lost, nothing is repeated, and no quota is wasted redoing finished people.
-
-For a first batch of 30–100 employees, expect a few days. After that, new
-employees are one at a time and finish in seconds.
 
 ---
 
@@ -236,7 +259,7 @@ The most useful ones:
 | `plate.background_softness` | Blurs the background if the leaf is distracting |
 | `plate.shadow` | The soft shadow behind each person |
 | `qa.min_face_similarity` | Stricter face checking (higher = fussier) |
-| `attire.combinations` | The list of suit and tie colours |
+| `attire.suits` / `attire.ties` | The suit and tie colours to choose from |
 | `output.width` / `height` | Final image size |
 
 After changing something, test on one person first:
@@ -263,13 +286,17 @@ run.bat --limit 3                only do the next 3 people
 run.bat --only tanvir-ahmed      process just this person
 run.bat --force tanvir-ahmed     redo this person even though they are done
 run.bat --force-all              redo everybody from scratch
-run.bat --provider stub          test the whole process using NO AI quota
+run.bat --provider stub          test the whole process using no AI at all
 run.bat --rebuild-review         rebuild the contact sheet only
 run.bat --verbose                show extra detail when something goes wrong
 ```
 
-`--provider stub` is genuinely useful: it runs every step except the AI, so you
-can check framing, background and file names without spending any quota.
+`--provider stub` is genuinely useful: it runs every step except the generation,
+so you can check framing, background and file names without generating anything.
+
+**A note on `--force-all`:** in manual mode this re-queues everybody for
+generation by hand, so only use it if you really do want to redo the whole
+company. `--force <name>` for one person is usually what you want.
 
 ---
 
@@ -279,12 +306,23 @@ can check framing, background and file names without spending any quota.
 Python is missing, or it was installed without ticking *Add Python to PATH*.
 Reinstall it and tick that box.
 
-**"No Google API key found"**
-The `.env` file has no key in it. See [Step 3](#step-3--add-the-free-google-key).
+**"Your Google plan does not include image generation"**
+You are in `gemini` mode without billing enabled. Google's free API tier does
+not include image generation. Either switch back to `provider.name: manual` in
+`config.yaml`, or enable billing. See [Generation modes](#generation-modes).
 
-**"The API key was rejected by Google"**
-The key was copied incorrectly, or it has been deleted in AI Studio. Create a
-new one and paste it again.
+**"No Google API key found"**
+Only `gemini` mode needs a key. If you meant to use the free route, set
+`provider.name: manual` in `config.yaml`.
+
+**Nothing happens except "waiting for you"**
+That is manual mode working correctly. Open `manual\START_HERE.html`, generate
+the photos listed there, save them into `manual_put_results_here`, then run
+the tool again.
+
+**A result was ignored**
+The file name must match exactly. `alvi-rahman.png` works; `alvi-rahman (1).png`
+or `Alvi-Rahman.png` will not be picked up.
 
 **"No face detection model could be loaded"**
 The setup downloads did not finish. Run `setup.bat` again.
@@ -300,8 +338,8 @@ with the same name, and run again. The automatic check catches obvious
 problems, not taste.
 
 **It is very slow**
-The first run loads several models and is slow to start. After that, expect
-roughly 15–30 seconds per person, mostly waiting on Google.
+The first run loads several models and is slow to start. After that the tool
+itself takes only a few seconds per person; the time goes on generating.
 
 ---
 
@@ -316,7 +354,10 @@ For whoever maintains this later.
    ├─ 2  NORMALIZE  EXIF rotate, neutralise colour cast, upscale if small
    ├─ 3  ALIGN      level the eyes, fixed head size, fixed eye line
    │
-   ├─ 4  GENERATE   ── Gemini ──► suit + tie on plain grey   (1 API call)
+   │                  ↓ the ONLY step that is not deterministic
+   ├─ 4  GENERATE   ── manual / gemini / stub ──► suit + tie on plain grey
+   │                  in manual mode the run pauses here and resumes
+   │                  on the next run, once the result has been saved
    │
    ├─ 5  FACE LOCK  paste the REAL face back, lighting-matched
    ├─ 6  RE-ALIGN   re-impose exact framing, because models drift
@@ -339,6 +380,7 @@ name, with a SHA-256 of their source photo:
 | Same name, same photo | Skip, no API call |
 | Same name, different photo | Redo as a new version, archive the old |
 | File removed from inbox | Leave `05_final` alone |
+| Queued for manual generation | Recorded as `awaiting_generation`, retried next run |
 
 Models used, all free: MediaPipe FaceLandmarker (framing and face mask),
 OpenCV YuNet (backup detector), OpenCV SFace (identity check), U2-Net
